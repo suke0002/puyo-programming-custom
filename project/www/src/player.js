@@ -186,7 +186,7 @@ class Player {
         }
         if(!isBlocked) {
             // 下にブロックがないなら自由落下してよい。プレイヤー操作中の自由落下処理をする
-            
+            this.puyoStatus.top += Config.playerFallingSpeed;
             if(isDownPressed) {
                 // 下キーが押されているならもっと加速する
                 this.puyoStatus.top += Config.playerDownSpeed;
@@ -277,7 +277,7 @@ class Player {
                 // 動かすことが出来るので、移動先情報をセットして移動状態にする       
                 this.actionStartFrame = frame;
                 this.moveSource = x * Config.puyoImgWidth;
-                
+                this.moveDestination = (x + cx) * Config.puyoImgWidth;
                 this.puyoStatus.x += cx;
                 return 'moving';
             }
@@ -367,7 +367,7 @@ class Player {
                 const dCombi = [[1, 0], [0, -1], [-1, 0], [0, 1]][distRotation / 90];
                 this.puyoStatus.dx = dCombi[0];
                 this.puyoStatus.dy = dCombi[1];
-                
+                return 'rotating';
             }
         }
         return 'playing';
