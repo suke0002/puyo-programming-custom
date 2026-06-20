@@ -111,20 +111,21 @@ function loop() {
             }
             break;
 
-        case 'checkErase':
+case 'checkErase':
             // 消せるかどうか判定する
             const eraseInfo = Stage.checkErase(frame);
             if(eraseInfo) {
                 mode = 'erasing';
                 combinationCount++;
-                // 得点を計算する
-                Score.calculateScore(combinationCount, eraseInfo.piece, eraseInfo.color);
+                // 得点を計算する（第4引数に実際の塊の配列データを追加）
+                Score.calculateScore(combinationCount, eraseInfo.piece, eraseInfo.color, eraseInfo.puyoGroups);
                 Stage.hideZenkeshi();
             } else {
                 if(Stage.puyoCount == 0 && combinationCount > 0) {
                     // 全消しの処理をする
                     Stage.showZenkeshi();
-                    Score.addScore(3600);
+                    // 本家ぷよぷよeスポーツの仕様（通ルール）に合わせ、全消しボーナス2100点を加算
+                    Score.addScore(2100);
                 }
                 combinationCount = 0;
                 // 消せなかったら、新しいぷよを登場させる

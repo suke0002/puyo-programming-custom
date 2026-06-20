@@ -184,7 +184,8 @@ class Stage {
             };
         };
         
-        // 実際に削除できるかの確認を行う
+// 実際に削除できるかの確認を行う
+        const puyoGroups = []; // 今回同時に消える塊ごとの個数を記録する配列
         for(let y = 0; y < Config.stageRows; y++) {
             for(let x = 0; x < Config.stageCols; x++) {
                 sequencePuyoInfoList.length = 0;
@@ -200,6 +201,7 @@ class Stage {
                     // これらは消して良いので消すリストに追加する
                     this.erasingPuyoInfoList.push(...sequencePuyoInfoList);
                     erasedPuyoColor[puyoColor] = true;
+                    puyoGroups.push(sequencePuyoInfoList.length); // 実際に消えた1つの塊の個数を記録（例: 4）
                 }
             }
         }
@@ -211,10 +213,11 @@ class Stage {
         }
 
         if(this.erasingPuyoInfoList.length) {
-            // もし消せるならば、消えるぷよの個数と色の情報をまとめて返す
+            // もし消せるならば、消えるぷよの個数と色の情報、そして個別の塊のリストをまとめて返す
             return {
                 piece: this.erasingPuyoInfoList.length,
-                color: Object.keys(erasedPuyoColor).length
+                color: Object.keys(erasedPuyoColor).length,
+                puyoGroups: puyoGroups // 塊の配列データを game.js 側へ引き渡す
             };
         }
         return null;
