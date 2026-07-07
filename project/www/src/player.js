@@ -140,7 +140,7 @@ static initialize () {
     // ぷよ設置確認＆生成
     static createNewPuyo () {
         // ぷよぷよが置けるかどうか、1番上の段の左から3つ目を確認する
-        if(Stage.board[0][2]) {
+        if(Stage.board[1][2]) {
             // 空白でない場合は新しいぷよを置けない
             return false;
         }
@@ -166,9 +166,9 @@ static initialize () {
         // ぷよの初期配置を定める
         this.puyoStatus = {
             x: 2, // 中心ぷよの位置: 左から2列目
-            y: -1, // 画面上部ギリギリから出てくる
+            y: 0, // 画面上部ギリギリから出てくる
             left: 2 * Config.puyoImgWidth,
-            top: -1 * Config.puyoImgHeight,
+            top: 0,
             dx: 0, // 動くぷよの相対位置: 動くぷよは上方向にある
             dy: -1, 
             rotation: 90 // 動くぷよの角度は90度（上向き）
@@ -186,9 +186,9 @@ static initialize () {
 
     static setPuyoPosition () {
         this.centerPuyoElement.style.left = this.puyoStatus.left + 'px';
-        this.centerPuyoElement.style.top = this.puyoStatus.top + 'px';
+        this.centerPuyoElement.style.top = (this.puyoStatus.top - Config.puyoImgHeight) + 'px';
         const x = this.puyoStatus.left + Math.cos(this.puyoStatus.rotation * Math.PI / 180) * Config.puyoImgWidth;
-        const y = this.puyoStatus.top - Math.sin(this.puyoStatus.rotation * Math.PI / 180) * Config.puyoImgHeight;
+        const y = (this.puyoStatus.top - Config.puyoImgHeight) - Math.sin(this.puyoStatus.rotation * Math.PI / 180) * Config.puyoImgHeight;
         this.movablePuyoElement.style.left = x + 'px';
         this.movablePuyoElement.style.top = y + 'px';
     }
@@ -210,23 +210,26 @@ static initialize () {
                 // 下キーが押されているならもっと加速する
                 this.puyoStatus.top += Config.playerDownSpeed;
             }
-            if(Math.floor(this.puyoStatus.top / Config.puyoImgHeight) != y) {
+            
+            // 💡 【重要修正】現在の落下蓄積(top)が、現在のマス(y)の底辺を超えたかどうかを正しく判定します
+            if(Math.floor(this.puyoStatus.top / Config.puyoImgHeight) > y) {
                 // ブロックの境を超えたので、再チェックする
-                // 下キーが押されていたら、得点を加算する
                 if(isDownPressed) {
                     Score.addScore(1);
                 }
                 y += 1;
                 this.puyoStatus.y = y;
+                
+                // 接地・ブロック衝突の再判定
                 if(y + 1 >= Config.stageRows || Stage.board[y + 1][x] || (y + dy + 1 >= 0 && (y + dy + 1 >= Config.stageRows || Stage.board[y + dy + 1][x + dx]))) {
                     isBlocked = true;
                 }
                 if(!isBlocked) {
-                    // 境を超えたが特に問題はなかった。次回も自由落下を続ける
                     this.groundFrame = 0;
                     return;
                 } else {
                     // 境を超えたらブロックにぶつかった。位置を調節して、接地を開始する
+                    // 💡 余計な引き算はせず、現在の y の位置にぴったり合わせます
                     this.puyoStatus.top = y * Config.puyoImgHeight;
                     this.groundFrame = 1;
                     return;
@@ -373,6 +376,7 @@ static initialize () {
                         this.puyoStatus.y -= 1;
                         this.groundFrame = 0;
                     }
+                    // 💡 余計な引き算を消し、移動後のy座標にそのまま高さを掛けます
                     this.puyoStatus.top = this.puyoStatus.y * Config.puyoImgHeight;
                 }
                 // 回すことが出来るので、回転後の情報をセットして回転状態にする

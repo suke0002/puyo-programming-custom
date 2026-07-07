@@ -16,8 +16,9 @@ class Stage {
         // HTML からステージの元となる要素を取得し、大きさを設定する
         const stageElement = document.getElementById("stage");
         stageElement.style.width = Config.puyoImgWidth * Config.stageCols + 'px';
-        stageElement.style.height = Config.puyoImgHeight * Config.stageRows + 'px';
+        stageElement.style.height = Config.puyoImgHeight * (Config.stageRows - 1) + 'px';
         stageElement.style.backgroundColor = Config.stageBackgroundColor;
+        stageElement.style.overflow = 'hidden';
         this.stageElement = stageElement;
         
         const zenkeshiImage = document.getElementById("zenkeshi");
@@ -29,13 +30,14 @@ class Stage {
 
         const scoreElement = document.getElementById("score");
         scoreElement.style.backgroundColor = Config.scoreBackgroundColor;
-        scoreElement.style.top = Config.puyoImgHeight * Config.stageRows + 'px';
+        scoreElement.style.top = Config.puyoImgHeight * 12 + 'px';
         scoreElement.style.width = Config.puyoImgWidth * Config.stageCols + 'px';
         scoreElement.style.height = Config.fontHeight + "px";
         this.scoreElement = scoreElement;
 
         // メモリを準備する
         this.board = [
+            [0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0],
@@ -71,7 +73,7 @@ class Stage {
         // 画像を作成し配置する
         const puyoImage = PuyoImage.getPuyo(puyo);
         puyoImage.style.left = x * Config.puyoImgWidth + "px";
-        puyoImage.style.top = y * Config.puyoImgHeight + "px";
+        puyoImage.style.top = (y - 1) * Config.puyoImgHeight + "px";
         this.stageElement.appendChild(puyoImage);
         // メモリにセットする
         this.board[y][x] = {
@@ -105,8 +107,8 @@ class Stage {
                     // 落ちるリストに入れる
                     this.fallingPuyoList.push({
                         element: cell.element,
-                        position: y * Config.puyoImgHeight,
-                        destination: dst * Config.puyoImgHeight,
+                        position: (y - 1) * Config.puyoImgHeight,
+                        destination: (dst - 1) * Config.puyoImgHeight,
                         falling: true
                     });
                     // 落ちるものがあったことを記録しておく
@@ -175,6 +177,10 @@ class Stage {
         const sequencePuyoInfoList = [];
         const existingPuyoInfoList = [];
         const checkSequentialPuyo = (x, y) => {
+            // 💡【追加】13段目（y === 0）のぷよは、そもそも他のぷよと繋がらないように探索から除外する
+            if (y === 0) {
+                return;
+            }
             // ぷよがあるか確認する
             const orig = this.board[y][x];
             if(!orig) {

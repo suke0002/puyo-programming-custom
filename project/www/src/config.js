@@ -7,11 +7,11 @@ Config.puyoImgHeight = 40; // ぷよぷよ画像の高さ
 Config.fontHeight = 33;
 
 Config.stageCols = 6; // ステージの横の個数
-Config.stageRows = 12; // ステージの縦の個数
+Config.stageRows = 13; // ステージの縦の個数
 
 // フィールドサイズ追加
 // 高さが全部入るように調整
-Config.puyoImgHeight = (window.innerHeight-Config.fontHeight)/Config.stageRows
+Config.puyoImgHeight = (window.innerHeight - Config.fontHeight) / 12;
 Config.puyoImgWidth = Config.puyoImgHeight;
 
 Config.stageBackgroundColor = '#ffffff'; // ステージの背景色
