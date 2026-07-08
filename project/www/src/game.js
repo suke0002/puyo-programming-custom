@@ -81,6 +81,64 @@ document.addEventListener('keyup', (e) => {
     if (e.keyCode === 40) isDownPressed = false;
 });
 
+// 💡【追加】タイトル画面でのマウスクリック処理
+document.addEventListener('click', (e) => {
+    if (mode !== 'title') return;
+    
+    if (titleSubMode === 'mainMenu') {
+        // メニューアイテムのクリック判定
+        for (let i = 0; i < MENU_COUNT; i++) {
+            const item = document.getElementById(`menu-item-${i}`);
+            if (item && item.contains(e.target)) {
+                selectedMenuIndex = i;
+                updateMenuDOM();
+                // クリック時は即座に決定処理を実行
+                isEnterPressed = true;
+                break;
+            }
+        }
+    } else if (titleSubMode === 'difficultySelect') {
+        // 難易度選択アイテムのクリック判定
+        for (let i = 0; i < DIFF_COUNT; i++) {
+            const item = document.getElementById(`diff-item-${i}`);
+            if (item && item.contains(e.target)) {
+                selectedDiffIndex = i;
+                updateDifficultyDOM();
+                // クリック時は即座に決定処理を実行
+                isEnterPressed = true;
+                break;
+            }
+        }
+    }
+});
+
+// 💡【追加】マウスホバーでメニュー選択を変更する機能
+document.addEventListener('mousemove', (e) => {
+    if (mode !== 'title') return;
+    
+    if (titleSubMode === 'mainMenu') {
+        // メニューアイテムのホバー判定
+        for (let i = 0; i < MENU_COUNT; i++) {
+            const item = document.getElementById(`menu-item-${i}`);
+            if (item && item.contains(e.target)) {
+                selectedMenuIndex = i;
+                updateMenuDOM();
+                break;
+            }
+        }
+    } else if (titleSubMode === 'difficultySelect') {
+        // 難易度選択アイテムのホバー判定
+        for (let i = 0; i < DIFF_COUNT; i++) {
+            const item = document.getElementById(`diff-item-${i}`);
+            if (item && item.contains(e.target)) {
+                selectedDiffIndex = i;
+                updateDifficultyDOM();
+                break;
+            }
+        }
+    }
+});
+
 function initialize() {
     PuyoImage.initialize();
     Stage.initialize();
@@ -111,7 +169,9 @@ function initialize() {
 }
 
 function showTitleMenu() {
-    document.getElementById('message-overlay').style.background = "rgba(0,0,0,0.7)";
+    const overlay = document.getElementById('message-overlay');
+    
+    overlay.style.background = "rgba(0,0,0,0.7)";
     document.getElementById('main-message').innerText = "PUYO PUYO";
     
     const rankingContainer = document.getElementById('ranking-container');
@@ -127,11 +187,15 @@ function showTitleMenu() {
         document.getElementById('menu-container').style.display = "block";
         document.getElementById('difficulty-container').style.display = "none";
         updateMenuDOM();
+        // 💡【追加】メニュー表示時にクリック可能にする
+        overlay.classList.add('menu-active');
     } else if (titleSubMode === 'difficultySelect') {
         document.getElementById('sub-message').innerText = "SELECT DIFFICULTY & PUSH ENTER";
         document.getElementById('menu-container').style.display = "none";
         document.getElementById('difficulty-container').style.display = "block";
         updateDifficultyDOM();
+        // 💡【追加】難易度選択表示時にクリック可能にする
+        overlay.classList.add('menu-active');
     }
 }
 
@@ -233,6 +297,9 @@ function resetGame() {
     
     const rankingContainer = document.getElementById('ranking-container');
     if (rankingContainer) rankingContainer.style.display = "none";
+    
+    // 💡【追加】ゲーム開始時にメニュー用クラスを削除
+    document.getElementById('message-overlay').classList.remove('menu-active');
     
     frame = 0;
     latestRankInIndex = -1;
@@ -665,4 +732,20 @@ function loop() {
 
     frame++;
     requestAnimationFrame(loop);
+}
+
+// 💡【追加】メニュー選択用の関数
+function selectMenu(index) {
+    if (mode !== 'title' || titleSubMode !== 'mainMenu') return;
+    selectedMenuIndex = index;
+    updateMenuDOM();
+    isEnterPressed = true;
+}
+
+// 💡【追加】難易度選択用の関数
+function selectDifficulty(index) {
+    if (mode !== 'title' || titleSubMode !== 'difficultySelect') return;
+    selectedDiffIndex = index;
+    updateDifficultyDOM();
+    isEnterPressed = true;
 }

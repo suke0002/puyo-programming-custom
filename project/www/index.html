@@ -55,6 +55,31 @@
             70% { transform: translate(-50%, -60%) scale(1.0); opacity: 1; }
             100% { transform: translate(-50%, -80%) scale(0.8); opacity: 0; }
         }
+
+        /* 💡【追加】デフォルトはクリック不可 */
+        #message-overlay {
+            pointer-events: none;
+        }
+
+        /* 💡【追加】メニュー表示時はクリック可能 */
+        #message-overlay.menu-active {
+            pointer-events: auto;
+        }
+
+        /* 💡【追加】メニューアイテムは常にクリック可能 */
+        #message-overlay.menu-active #menu-container,
+        #message-overlay.menu-active #difficulty-container {
+            pointer-events: auto;
+        }
+
+        #message-overlay.menu-active #menu-item-0,
+        #message-overlay.menu-active #menu-item-1,
+        #message-overlay.menu-active #menu-item-2,
+        #message-overlay.menu-active #diff-item-0,
+        #message-overlay.menu-active #diff-item-1,
+        #message-overlay.menu-active #diff-item-2 {
+            pointer-events: auto;
+        }
     </style>
 </head>
 <body style="margin:0;">
@@ -125,9 +150,9 @@
     </div>
     
     <div id="message-overlay" style="
-        position: absolute;
+        position: fixed;
         top: 0; left: 0;
-        width: 100%; height: 100%;
+        width: 100vw; height: 100vh;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -142,15 +167,15 @@
         z-index: 100;
     ">
         <div id="main-message">PUYO PUYO</div>    
-        <div id="menu-container" style="display: none; margin-top: 20px; font-family: sans-serif; text-align: center;">
-            <div id="menu-item-0" class="menu-item selected" style="font-size: 24px; color: #fff; margin: 10px 0; cursor: pointer;">▶ とこぷよ</div>
-            <div id="menu-item-1" class="menu-item" style="font-size: 24px; color: #888; margin: 10px 0; cursor: pointer;">スコアアタック</div>
-            <div id="menu-item-2" class="menu-item" style="font-size: 24px; color: #888; margin: 10px 0; cursor: pointer;">ログイン</div>
-        </div>
         <div id="difficulty-container" style="display: none; margin-top: 20px; font-family: sans-serif; text-align: center;">
-            <div id="diff-item-0" style="font-size: 22px; color: #fff; margin: 10px 0;">▶ EASY (3 colors)</div>
-            <div id="diff-item-1" style="font-size: 22px; color: #888; margin: 10px 0;">NORMAL (4 colors)</div>
-            <div id="diff-item-2" style="font-size: 22px; color: #888; margin: 10px 0;">HARD (5 colors)</div>
+            <div id="diff-item-0" style="font-size: 22px; color: #fff; margin: 10px 0; cursor: pointer;" onclick="selectDifficulty(0)">▶ EASY (3 colors)</div>
+            <div id="diff-item-1" style="font-size: 22px; color: #888; margin: 10px 0; cursor: pointer;" onclick="selectDifficulty(1)">NORMAL (4 colors)</div>
+            <div id="diff-item-2" style="font-size: 22px; color: #888; margin: 10px 0; cursor: pointer;" onclick="selectDifficulty(2)">HARD (5 colors)</div>
+        </div>
+        <div id="menu-container" style="display: none; margin-top: 20px; font-family: sans-serif; text-align: center;">
+            <div id="menu-item-0" class="menu-item selected" style="font-size: 24px; color: #fff; margin: 10px 0; cursor: pointer;" onclick="selectMenu(0)">▶ とこぷよ</div>
+            <div id="menu-item-1" class="menu-item" style="font-size: 24px; color: #888; margin: 10px 0; cursor: pointer;" onclick="selectMenu(1)">スコアアタック</div>
+            <div id="menu-item-2" class="menu-item" style="font-size: 24px; color: #888; margin: 10px 0; cursor: pointer;" onclick="selectMenu(2)">ログイン</div>
         </div>
         <div id="ranking-container" style="display: none; position: absolute; top: 50px; left: 50%; transform: translateX(-50%); font-family: sans-serif; text-align: center; color: #fff; width: 280px; background: rgba(0,0,0,0.9); padding: 15px; border-radius: 10px; z-index: 1000;">
             <h3 style="color: #ffeb3b; margin-top: 0; margin-bottom: 10px;">📊 SCORE RANKING</h3>
