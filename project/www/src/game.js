@@ -32,20 +32,24 @@ let isTimeUp = false;
 let latestRankInIndex = -1;
 let currentHighScore = 0;
 let lastTimerUpdateTime = 0;
-let isPaused = false;   // 💡【追加】ポーズ中かどうかを管理するフラグ
-let selectedPauseMenuIndex = 0; // 💡【追加】ポーズメニューの選択インデックス（0:再開, 1:タイトル）
-let currentPuzzleId = null; // 💡【追加】なぞぷよ用の変数
+let isPaused = false; // 💡【追加】ポーズ中かどうかを管理するフラグ
+let selectedPauseMenuIndex = 0; // 💡【追加】ポーズメニューの選択インデックス（0:再開, 1:リトライ, 2:一覧に戻る）
+
+// 💡【追加】なぞぷよ用の変数
+let currentPuzzleId = null;
 let currentPuzzle = null;
-let puzzleNextQueueIndex = 0;   // ネクストキューのどこまで使ったかを記録
+let puzzleNextQueueIndex = 0;  // ネクストキューのどこまで使ったかを記録
+let puzzleClearConditionMet = false; // クリア条件を満たしたかを記録
 
 document.addEventListener('keydown', (e) => {
+    // 💡【追加】ポーズ中のキーボード操作
     if (isPaused) {
         if (e.keyCode === 38) { // 上向きキー
-            selectedPauseMenuIndex = (selectedPauseMenuIndex - 1 + 3) % 3;
+            selectedPauseMenuIndex = Math.max(0, selectedPauseMenuIndex - 1);
             updatePauseMenuDOM();
         }
         if (e.keyCode === 40) { // 下向きキー
-            selectedPauseMenuIndex = (selectedPauseMenuIndex + 1) % 3;
+            selectedPauseMenuIndex = Math.min(2, selectedPauseMenuIndex + 1);
             updatePauseMenuDOM();
         }
         if (e.keyCode === 13) { // Enterキー（決定）
@@ -54,13 +58,13 @@ document.addEventListener('keydown', (e) => {
             } else if (selectedPauseMenuIndex === 1) {
                 retryGame();
             } else {
-                backToTitleFromPause();
+                backToPuzzleListFromPause();
             }
         }
         if (e.keyCode === 27) { // ポーズ中にEscが押されたら再開
             togglePause();
         }
-        return;
+        return; // ポーズ中の場合は通常のゲーム入力を行わない
     }
 
     if (e.keyCode === 13) isEnterPressed = true; 
@@ -204,7 +208,7 @@ function showTitleMenu() {
 }
 
 function updateMenuDOM() {
-    const menuNames = ["とこぷよ", "スコアアタック", "ログイン"];
+    const menuNames = ["とこぷよ", "スコアアタック", "なぞぷよ"];
     for (let i = 0; i < MENU_COUNT; i++) {
         const item = document.getElementById(`menu-item-${i}`);
         if (item) {
@@ -259,7 +263,31 @@ function resetGame() {
         }
     }
     
-    if (gameType === 'scoreAttack') {
+    if (gameType === 'puzzle') {
+        // 💡【追加】なぞぷよモードの初期化
+        if (currentPuzzle) {
+            // 初期盤面をコピー
+            for (let y = 0; y < Config.stageRows; y++) {
+                for (let x = 0; x < Config.stageCols; x++) {
+                    const puyoColor = currentPuzzle.initialBoard[y][x];
+                    if (puyoColor > 0) {
+                        Stage.board[y][x] = { puyo: puyoColor, element: null };
+                    }
+                }
+            }
+            
+            // ネクストキューを設定
+            Player.nextPuyoQueue = [...currentPuzzle.nextQueue];
+            puzzleNextQueueIndex = 0;
+            puzzleClearConditionMet = false;
+        }
+        
+        // UIを表示
+        document.getElementById('puzzle-goal-container').style.display = 'block';
+        document.getElementById('puzzle-next-list-container').style.display = 'block';
+        updatePuzzleGoalDisplay();
+        updatePuzzleNextListDisplay();
+    } else if (gameType === 'scoreAttack') {
         Config.puyoColors = 4; 
         remainingTime = 120;   
         isTimeUp = false;
@@ -288,7 +316,10 @@ function resetGame() {
         if (highCont) highCont.style.display = "none";
     }
     
-    Player.nextPuyoQueue = [];
+    if (gameType !== 'puzzle') {
+        Player.nextPuyoQueue = [];
+    }
+    
     Stage.initialize();
     Player.initialize();
     Score.initialize();
@@ -304,17 +335,6 @@ function resetGame() {
     
     // 💡【追加】ゲーム開始時にメニュー用クラスを削除
     document.getElementById('message-overlay').classList.remove('menu-active');
-
-    // 💡【追加】消去中のぷよ情報をクリア
-    if (Stage.erasingPuyoInfoList) {
-        Stage.erasingPuyoInfoList = [];
-    }
-    
-    // 💡【追加】連鎖カウントをリセット
-    combinationCount = 0;
-    
-    // 💡【追加】ゲームモードをリセット
-    mode = 'start';
     
     frame = 0;
     latestRankInIndex = -1;
@@ -462,12 +482,9 @@ function togglePause() {
         selectedPauseMenuIndex = 0; // ポーズを開いたときは「再開」を初期選択にする
         updatePauseMenuDOM();
     }
-    // 💡【追加】ポーズ解除時もメニューインデックスをリセット
-    if (!isPaused) {
-        selectedPauseMenuIndex = 0;
-    }
 }
 
+// 💡【追加】ポーズメニューの選択状態（見た目）を更新する関数
 function updatePauseMenuDOM() {
     const resumeBtn = document.getElementById('pause-resume-btn');
     const retryBtn = document.getElementById('pause-retry-btn');
@@ -476,7 +493,6 @@ function updatePauseMenuDOM() {
     if (!resumeBtn || !retryBtn || !titleBtn) return;
 
     if (selectedPauseMenuIndex === 0) {
-        // 「ゲームを再開する」が選択されているとき
         resumeBtn.innerText = '▶ ゲームを再開する';
         resumeBtn.style.color = '#ffffff';
         
@@ -486,7 +502,6 @@ function updatePauseMenuDOM() {
         titleBtn.innerText = 'タイトルに戻る';
         titleBtn.style.color = '#888888';
     } else if (selectedPauseMenuIndex === 1) {
-        // 「はじめからやりなおす」が選択されているとき
         resumeBtn.innerText = 'ゲームを再開する';
         resumeBtn.style.color = '#888888';
         
@@ -496,7 +511,6 @@ function updatePauseMenuDOM() {
         titleBtn.innerText = 'タイトルに戻る';
         titleBtn.style.color = '#888888';
     } else {
-        // 「タイトルに戻る」が選択されているとき
         resumeBtn.innerText = 'ゲームを再開する';
         resumeBtn.style.color = '#888888';
         
@@ -520,39 +534,98 @@ function backToTitleFromPause() {
     if (pauseMenu) pauseMenu.style.display = 'none';
     
     isTimeUp = false;
-    titleSubMode = 'mainMenu';
-    
-    // 💡【追加】ゲーム状態を完全にリセット
-    resetGame();
-    
+    titleSubMode = 'mainMenu'; 
     showTitleMenu();
     mode = 'title';
+}
+
+// 💡【追加】なぞぷよ一覧に戻る
+function backToPuzzleListFromPause() {
+    isPaused = false;
+    const pauseMenu = document.getElementById('pause-menu');
+    if (pauseMenu) pauseMenu.style.display = 'none';
+    
+    document.getElementById('puzzle-goal-container').style.display = 'none';
+    document.getElementById('puzzle-next-list-container').style.display = 'none';
+    showPuzzleList();
+    mode = 'title';
+    titleSubMode = 'puzzleSelect';
+}
+
+// 💡【追加】なぞぷよの目標表示を更新
+function updatePuzzleGoalDisplay() {
+    if (!currentPuzzle) return;
+    
+    const goalText = document.getElementById('puzzle-goal-text');
+    if (goalText) {
+        let goalString = '';
+        if (currentPuzzle.goal.type === 'chain') {
+            goalString = `${currentPuzzle.goal.value}連鎖`;
+        } else if (currentPuzzle.goal.type === 'color') {
+            goalString = `${currentPuzzle.goal.value}色消す`;
+        } else if (currentPuzzle.goal.type === 'allClear') {
+            goalString = `全消し`;
+        }
+        goalText.innerText = goalString;
+    }
+}
+
+// 💡【追加】なぞぷよのネクスト一覧を更新
+function updatePuzzleNextListDisplay() {
+    if (!currentPuzzle) return;
+    
+    const nextListContainer = document.getElementById('puzzle-next-list');
+    if (nextListContainer) {
+        nextListContainer.innerHTML = '';
+        
+        // 現在のキューインデックスから表示
+        const colorMap = { 1: '🔴', 2: '🟢', 3: '🔵', 4: '🟡', 5: '🟣' };
+        
+        for (let i = puzzleNextQueueIndex; i < currentPuzzle.nextQueue.length; i += 2) {
+            const color1 = currentPuzzle.nextQueue[i];
+            const color2 = i + 1 < currentPuzzle.nextQueue.length ? currentPuzzle.nextQueue[i + 1] : null;
+            
+            const pairDiv = document.createElement('div');
+            pairDiv.style.fontSize = '12px';
+            pairDiv.style.color = '#fff';
+            pairDiv.innerText = `${colorMap[color1] || '?'}${color2 ? colorMap[color2] : ''}`;
+            
+            nextListContainer.appendChild(pairDiv);
+        }
+    }
+}
+
+// 💡【追加】なぞぷよのクリア条件を判定
+function checkPuzzleClearCondition() {
+    if (!currentPuzzle || puzzleClearConditionMet) return false;
+    
+    if (currentPuzzle.goal.type === 'chain') {
+        if (combinationCount >= currentPuzzle.goal.value) {
+            puzzleClearConditionMet = true;
+            return true;
+        }
+    } else if (currentPuzzle.goal.type === 'color') {
+        // 色の判定は checkErase 時に計測
+        // ここでは保留
+    } else if (currentPuzzle.goal.type === 'allClear') {
+        if (Stage.puyoCount === 0) {
+            puzzleClearConditionMet = true;
+            return true;
+        }
+    }
+    
+    return false;
 }
 
 function loop() {
     // 💡【追加】ポーズ中の場合の処理
     if (isPaused) {
-        // スコアアタックモードの場合のみ、ポーズ中であってもタイマーの減少処理を実行する
-        if (gameType === 'scoreAttack' && !isTimeUp) {
-            const now = Date.now();
-            if (now - lastTimerUpdateTime >= 1000) {
-                remainingTime--;
-                lastTimerUpdateTime += 1000;
-                if (remainingTime <= 0) {
-                    remainingTime = 0;
-                    isTimeUp = true; 
-                    // タイムアップしたら自動的にポーズを解除してゲームオーバー側へ進める
-                    togglePause(); 
-                }
-                const timerDisp = document.getElementById('timer-display');
-                if (timerDisp) timerDisp.innerText = remainingTime;
-            }
-        }
         // ゲーム自体の進行（switch(mode)）は実行せずに次フレームへリクエスト
         frame++;
         requestAnimationFrame(loop);
         return;
     }
+    
     switch(mode) {
         case 'title':
             if (titleSubMode === 'mainMenu') {
@@ -579,10 +652,8 @@ function loop() {
                         titleSubMode = 'mainMenu';
                         resetGame(); 
                     } else if (selectedMenuIndex === 2) {
-                        // なぞぷよが選択された
                         showPuzzleList();
                     }
-                    
                 }
             }
             else if (titleSubMode === 'difficultySelect') {
@@ -602,6 +673,10 @@ function loop() {
                     titleSubMode = 'mainMenu';
                     resetGame();
                 }
+            }
+            else if (titleSubMode === 'puzzleSelect') {
+                // なぞぷよ一覧選択中
+                // ここでは特に処理なし（クリックで直接 selectPuzzle を呼ぶ）
             }
             break;
 
@@ -644,6 +719,12 @@ function loop() {
                         endVoices[combinationCount].play().catch(e => {});
                     }
                 }
+                
+                // 💡【追加】なぞぷよ用クリア判定
+                if (gameType === 'puzzle' && checkPuzzleClearCondition()) {
+                    mode = 'puzzleClear';
+                    break;
+                }
             } else {
                 if(Stage.puyoCount == 0 && combinationCount > 0) {
                     Stage.showZenkeshi();
@@ -671,9 +752,15 @@ function loop() {
             }
 
             if(!Player.createNewPuyo()) {
-                mode = 'gameOver';
+                if (gameType === 'puzzle') {
+                    // なぞぷよで盤面が積み上がってゲームオーバー
+                    mode = 'puzzleOver';
+                } else {
+                    mode = 'gameOver';
+                }
             } else {
                 mode = 'playing';
+                updatePuzzleNextListDisplay(); // なぞぷよ用ネクスト更新
             }
             break;
 
@@ -697,6 +784,46 @@ function loop() {
         case 'fix':
             Player.fix();
             mode = 'checkFall';
+            break;
+
+        case 'puzzleClear':
+            // 💡【追加】なぞぷよクリア画面
+            document.getElementById('message-overlay').style.background = "rgba(0,0,0,0.6)";
+            document.getElementById('main-message').innerText = "CLEAR!";
+            document.getElementById('sub-message').innerText = "PUSH ENTER";
+            isEnterPressed = false;
+            isUpPressed = false;
+            isDownPressed = false;
+            mode = 'puzzleClearWait';
+            break;
+
+        case 'puzzleClearWait':
+            if (isEnterPressed) {
+                isEnterPressed = false;
+                showPuzzleList();
+                mode = 'title';
+                titleSubMode = 'puzzleSelect';
+            }
+            break;
+
+        case 'puzzleOver':
+            // 💡【追加】なぞぷよゲームオーバー画面
+            document.getElementById('message-overlay').style.background = "rgba(0,0,0,0.6)";
+            document.getElementById('main-message').innerText = "GAME OVER";
+            document.getElementById('sub-message').innerText = "PUSH ENTER";
+            isEnterPressed = false;
+            isUpPressed = false;
+            isDownPressed = false;
+            mode = 'puzzleOverWait';
+            break;
+
+        case 'puzzleOverWait':
+            if (isEnterPressed) {
+                isEnterPressed = false;
+                showPuzzleList();
+                mode = 'title';
+                titleSubMode = 'puzzleSelect';
+            }
             break;
 
         case 'gameOver':
@@ -755,7 +882,7 @@ function loop() {
             break;
     }
 
-    // 💡【修正】通常時（!isPaused）のみ、ここでタイマーを更新する（ポーズ中のスコアタタイマーは上部で処理しているため）
+    // 💡【修正】通常時のみ、ここでタイマーを更新
     if (!isPaused && gameType === 'scoreAttack' && !isTimeUp && (mode === 'playing' || mode === 'moving' || mode === 'rotating' || mode === 'fix' || mode === 'checkFall' || mode === 'fall' || mode === 'checkErase' || mode === 'erasing' || mode === 'newPuyo')) {
         const now = Date.now();
         if (now - lastTimerUpdateTime >= 1000) {
@@ -799,11 +926,12 @@ function retryGame() {
     resetGame();
 }
 
+// 💡【追加】なぞぷよ問題一覧を表示
 function showPuzzleList() {
     const overlay = document.getElementById('message-overlay');
     overlay.style.background = "rgba(0,0,0,0.7)";
     document.getElementById('main-message').innerText = "なぞぷよ";
-    document.getElementById('sub-message').innerText = "SELECT PUZZLE & PUSH ENTER";
+    document.getElementById('sub-message').innerText = "SELECT PUZZLE & CLICK";
     document.getElementById('menu-container').style.display = "none";
     document.getElementById('difficulty-container').style.display = "none";
     
@@ -811,12 +939,14 @@ function showPuzzleList() {
     const puzzleList = document.getElementById('puzzle-list');
     
     puzzleList.innerHTML = '';
-    PUZZLES.forEach((puzzle, index) => {
+    PUZZLES.forEach((puzzle) => {
         const item = document.createElement('div');
-        item.style.padding = "5px";
+        item.style.padding = "8px";
         item.style.cursor = "pointer";
         item.style.borderRadius = "3px";
-        item.innerHTML = `<span onclick="selectPuzzle(${puzzle.id})">${puzzle.title}: ${puzzle.description}</span>`;
+        item.style.marginBottom = "5px";
+        item.style.backgroundColor = "rgba(255,255,255,0.1)";
+        item.innerHTML = `<div onclick="selectPuzzle(${puzzle.id})" style="color: #fff; font-weight: bold;">${puzzle.title}</div><div style="color: #aaa; font-size: 12px;">${puzzle.description}</div>`;
         puzzleList.appendChild(item);
     });
     
@@ -825,10 +955,14 @@ function showPuzzleList() {
     overlay.classList.add('menu-active');
 }
 
+// 💡【追加】なぞぷよを選択
 function selectPuzzle(puzzleId) {
     currentPuzzleId = puzzleId;
     currentPuzzle = PUZZLES.find(p => p.id === puzzleId);
     gameType = 'puzzle';
     titleSubMode = 'mainMenu';
+    
+    document.getElementById('puzzle-list-container').style.display = 'none';
+    
     resetGame();
 }
