@@ -7,6 +7,7 @@
     <title>ぷよぷよの制作を体験してみよう！</title>
     <script src="components/loader.js"></script>
     <script src="src/config.js"></script>
+    <script src="src/puzzles.js"></script>
     <script src="src/stage.js"></script>
     <script src="src/score.js"></script>
     <script src="src/puyoimage.js"></script>
@@ -97,6 +98,12 @@
             width: 120px;
             box-sizing: border-box;
         ">
+            <!-- 💡【追加】なぞぷよ用のお題表示エリア -->
+            <div id="puzzle-goal-container" style="display: none; padding: 15px 0; background-color: rgba(0, 0, 0, 0.5); border-radius: 0 10px 10px 0; text-align: center; font-family: sans-serif; color: #fff;">
+                <div style="font-size: 11px; color: #bbb; font-weight: bold; margin-bottom: 5px;">GOAL</div>
+                <div id="puzzle-goal-text" style="font-size: 14px; color: #ffeb3b; font-weight: bold; word-wrap: break-word;">Loading...</div>
+            </div>
+
             <div id="next-container" style="
                 width: 100%;
                 padding: 15px 0;
@@ -110,6 +117,12 @@
             ">
                 <div id="next1-box" class="next-puyo-box" style="width: 60px; height: 120px; position: relative;"></div>
                 <div id="next2-box" class="next-puyo-box" style="width: 60px; height: 120px; position: relative; transform: scale(0.85);"></div>
+            </div>
+
+            <!-- 💡【追加】なぞぷよ用のネクスト一覧 -->
+            <div id="puzzle-next-list-container" style="display: none; padding: 10px 0; background-color: rgba(0, 0, 0, 0.5); border-radius: 0 10px 10px 0; text-align: center; font-family: sans-serif;">
+                <div style="font-size: 11px; color: #bbb; font-weight: bold; margin-bottom: 5px;">NEXT LIST</div>
+                <div id="puzzle-next-list" style="display: flex; flex-direction: column; gap: 5px; align-items: center;"></div>
             </div>
 
             <div id="side-info-panel" style="font-family: sans-serif; text-align: left; pointer-events: none; width: 100%; padding: 0 10px; box-sizing: border-box;">
@@ -175,11 +188,16 @@
         <div id="menu-container" style="display: none; margin-top: 20px; font-family: sans-serif; text-align: center;">
             <div id="menu-item-0" class="menu-item selected" style="font-size: 24px; color: #fff; margin: 10px 0; cursor: pointer;" onclick="selectMenu(0)">▶ とこぷよ</div>
             <div id="menu-item-1" class="menu-item" style="font-size: 24px; color: #888; margin: 10px 0; cursor: pointer;" onclick="selectMenu(1)">スコアアタック</div>
-            <div id="menu-item-2" class="menu-item" style="font-size: 24px; color: #888; margin: 10px 0; cursor: pointer;" onclick="selectMenu(2)">ログイン</div>
+            <div id="menu-item-2" class="menu-item" style="font-size: 24px; color: #888; margin: 10px 0; cursor: pointer;" onclick="selectMenu(2)">なぞぷよ</div>
         </div>
         <div id="ranking-container" style="display: none; position: absolute; top: 50px; left: 50%; transform: translateX(-50%); font-family: sans-serif; text-align: center; color: #fff; width: 280px; background: rgba(0,0,0,0.9); padding: 15px; border-radius: 10px; z-index: 1000;">
             <h3 style="color: #ffeb3b; margin-top: 0; margin-bottom: 10px;">📊 SCORE RANKING</h3>
             <div id="ranking-list" style="text-align: left; font-size: 15px; line-height: 1.5; margin-bottom: 15px;"></div>
+        </div>
+        <!-- 💡【追加】なぞぷよ問題一覧 -->
+        <div id="puzzle-list-container" style="display: none; position: absolute; top: 50px; left: 50%; transform: translateX(-50%); font-family: sans-serif; text-align: center; color: #fff; width: 300px; background: rgba(0,0,0,0.9); padding: 15px; border-radius: 10px; z-index: 1000; max-height: 70vh; overflow-y: auto;">
+            <h3 style="color: #ffeb3b; margin-top: 0; margin-bottom: 10px;">なぞぷよ</h3>
+            <div id="puzzle-list" style="text-align: left; font-size: 14px; line-height: 2;"></div>
         </div>
         <div id="sub-message">PUSH ENTER TO START</div>
     </div>
@@ -187,8 +205,10 @@
         <div onclick="togglePause()" style="position: absolute; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); cursor: pointer;"></div>
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(26, 26, 26, 0.95); padding: 40px 30px; border: 4px solid #fff; border-radius: 12px; text-align: center; font-family: sans-serif; min-width: 280px; box-shadow: 0 0 20px rgba(0,0,0,0.6);">
             <h2 style="margin-top: 0; margin-bottom: 30px; font-size: 26px; color: #ffcc00; letter-spacing: 2px;">PAUSE</h2>
-            <div id="pause-resume-btn" onclick="togglePause()" style="font-size: 22px; color: #fff; margin: 20px 0; cursor: pointer; font-weight: bold; text-align: center;">▶ ゲームを再開する</div>
-            <div id="pause-title-btn" onclick="backToTitleFromPause()" style="font-size: 22px; color: #888; margin: 20px 0; cursor: pointer; font-weight: bold; text-align: center;">タイトルに戻る</div>        </div>
+            <div id="pause-resume-btn" onclick="togglePause()" onmouseover="hoverPauseMenu(0)" style="font-size: 22px; color: #fff; margin: 20px 0; cursor: pointer; font-weight: bold; text-align: center;">▶ ゲームを再開する</div>
+            <div id="pause-retry-btn" onclick="retryGame()" onmouseover="hoverPauseMenu(1)" style="font-size: 22px; color: #888; margin: 20px 0; cursor: pointer; font-weight: bold; text-align: center;">はじめからやりなおす</div>
+            <div id="pause-title-btn" onclick="backToTitleFromPause()" onmouseover="hoverPauseMenu(2)" style="font-size: 22px; color: #888; margin: 20px 0; cursor: pointer; font-weight: bold; text-align: center;">タイトルに戻る</div>
+        </div>
     </div>
     <script src="components/loader.js"></script>
 </body>

@@ -32,23 +32,27 @@ let isTimeUp = false;
 let latestRankInIndex = -1;
 let currentHighScore = 0;
 let lastTimerUpdateTime = 0;
-let isPaused = false; // 💡【追加】ポーズ中かどうかを管理するフラグ
+let isPaused = false;   // 💡【追加】ポーズ中かどうかを管理するフラグ
 let selectedPauseMenuIndex = 0; // 💡【追加】ポーズメニューの選択インデックス（0:再開, 1:タイトル）
+let currentPuzzleId = null; // 💡【追加】なぞぷよ用の変数
+let currentPuzzle = null;
+let puzzleNextQueueIndex = 0;   // ネクストキューのどこまで使ったかを記録
 
 document.addEventListener('keydown', (e) => {
-    // 💡【追加】ポーズ中のキーボード操作
     if (isPaused) {
         if (e.keyCode === 38) { // 上向きキー
-            selectedPauseMenuIndex = 0;
+            selectedPauseMenuIndex = (selectedPauseMenuIndex - 1 + 3) % 3;
             updatePauseMenuDOM();
         }
         if (e.keyCode === 40) { // 下向きキー
-            selectedPauseMenuIndex = 1;
+            selectedPauseMenuIndex = (selectedPauseMenuIndex + 1) % 3;
             updatePauseMenuDOM();
         }
         if (e.keyCode === 13) { // Enterキー（決定）
             if (selectedPauseMenuIndex === 0) {
                 togglePause();
+            } else if (selectedPauseMenuIndex === 1) {
+                retryGame();
             } else {
                 backToTitleFromPause();
             }
@@ -56,7 +60,7 @@ document.addEventListener('keydown', (e) => {
         if (e.keyCode === 27) { // ポーズ中にEscが押されたら再開
             togglePause();
         }
-        return; // ポーズ中の場合は通常のゲーム入力を行わない
+        return;
     }
 
     if (e.keyCode === 13) isEnterPressed = true; 
@@ -300,6 +304,17 @@ function resetGame() {
     
     // 💡【追加】ゲーム開始時にメニュー用クラスを削除
     document.getElementById('message-overlay').classList.remove('menu-active');
+
+    // 💡【追加】消去中のぷよ情報をクリア
+    if (Stage.erasingPuyoInfoList) {
+        Stage.erasingPuyoInfoList = [];
+    }
+    
+    // 💡【追加】連鎖カウントをリセット
+    combinationCount = 0;
+    
+    // 💡【追加】ゲームモードをリセット
+    mode = 'start';
     
     frame = 0;
     latestRankInIndex = -1;
@@ -447,30 +462,49 @@ function togglePause() {
         selectedPauseMenuIndex = 0; // ポーズを開いたときは「再開」を初期選択にする
         updatePauseMenuDOM();
     }
+    // 💡【追加】ポーズ解除時もメニューインデックスをリセット
+    if (!isPaused) {
+        selectedPauseMenuIndex = 0;
+    }
 }
 
-// 💡【追加】ポーズメニューの選択状態（見た目）を更新する関数
 function updatePauseMenuDOM() {
-    // 💡 選択状態（selectedPauseMenuIndex）に応じて、テキストの「▶」と色を綺麗に切り替える
     const resumeBtn = document.getElementById('pause-resume-btn');
+    const retryBtn = document.getElementById('pause-retry-btn');
     const titleBtn = document.getElementById('pause-title-btn');
     
-    if (!resumeBtn || !titleBtn) return;
+    if (!resumeBtn || !retryBtn || !titleBtn) return;
 
     if (selectedPauseMenuIndex === 0) {
         // 「ゲームを再開する」が選択されているとき
         resumeBtn.innerText = '▶ ゲームを再開する';
-        resumeBtn.style.color = '#ffffff'; // ホワイト
+        resumeBtn.style.color = '#ffffff';
+        
+        retryBtn.innerText = 'はじめからやりなおす';
+        retryBtn.style.color = '#888888';
         
         titleBtn.innerText = 'タイトルに戻る';
-        titleBtn.style.color = '#888888'; // グレー
+        titleBtn.style.color = '#888888';
+    } else if (selectedPauseMenuIndex === 1) {
+        // 「はじめからやりなおす」が選択されているとき
+        resumeBtn.innerText = 'ゲームを再開する';
+        resumeBtn.style.color = '#888888';
+        
+        retryBtn.innerText = '▶ はじめからやりなおす';
+        retryBtn.style.color = '#ffffff';
+        
+        titleBtn.innerText = 'タイトルに戻る';
+        titleBtn.style.color = '#888888';
     } else {
         // 「タイトルに戻る」が選択されているとき
         resumeBtn.innerText = 'ゲームを再開する';
-        resumeBtn.style.color = '#888888'; // グレー
+        resumeBtn.style.color = '#888888';
+        
+        retryBtn.innerText = 'はじめからやりなおす';
+        retryBtn.style.color = '#888888';
         
         titleBtn.innerText = '▶ タイトルに戻る';
-        titleBtn.style.color = '#ffffff'; // ホワイト
+        titleBtn.style.color = '#ffffff';
     }
 }
 
@@ -486,7 +520,11 @@ function backToTitleFromPause() {
     if (pauseMenu) pauseMenu.style.display = 'none';
     
     isTimeUp = false;
-    titleSubMode = 'mainMenu'; 
+    titleSubMode = 'mainMenu';
+    
+    // 💡【追加】ゲーム状態を完全にリセット
+    resetGame();
+    
     showTitleMenu();
     mode = 'title';
 }
@@ -541,8 +579,10 @@ function loop() {
                         titleSubMode = 'mainMenu';
                         resetGame(); 
                     } else if (selectedMenuIndex === 2) {
-                        console.log("ログイン が選択されました");
+                        // なぞぷよが選択された
+                        showPuzzleList();
                     }
+                    
                 }
             }
             else if (titleSubMode === 'difficultySelect') {
@@ -748,4 +788,47 @@ function selectDifficulty(index) {
     selectedDiffIndex = index;
     updateDifficultyDOM();
     isEnterPressed = true;
+}
+
+// 💡【追加】ゲームをやり直す関数
+function retryGame() {
+    isPaused = false;
+    const pauseMenu = document.getElementById('pause-menu');
+    if (pauseMenu) pauseMenu.style.display = 'none';
+    
+    resetGame();
+}
+
+function showPuzzleList() {
+    const overlay = document.getElementById('message-overlay');
+    overlay.style.background = "rgba(0,0,0,0.7)";
+    document.getElementById('main-message').innerText = "なぞぷよ";
+    document.getElementById('sub-message').innerText = "SELECT PUZZLE & PUSH ENTER";
+    document.getElementById('menu-container').style.display = "none";
+    document.getElementById('difficulty-container').style.display = "none";
+    
+    const puzzleListContainer = document.getElementById('puzzle-list-container');
+    const puzzleList = document.getElementById('puzzle-list');
+    
+    puzzleList.innerHTML = '';
+    PUZZLES.forEach((puzzle, index) => {
+        const item = document.createElement('div');
+        item.style.padding = "5px";
+        item.style.cursor = "pointer";
+        item.style.borderRadius = "3px";
+        item.innerHTML = `<span onclick="selectPuzzle(${puzzle.id})">${puzzle.title}: ${puzzle.description}</span>`;
+        puzzleList.appendChild(item);
+    });
+    
+    puzzleListContainer.style.display = "block";
+    titleSubMode = 'puzzleSelect';
+    overlay.classList.add('menu-active');
+}
+
+function selectPuzzle(puzzleId) {
+    currentPuzzleId = puzzleId;
+    currentPuzzle = PUZZLES.find(p => p.id === puzzleId);
+    gameType = 'puzzle';
+    titleSubMode = 'mainMenu';
+    resetGame();
 }
