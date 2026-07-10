@@ -1071,7 +1071,7 @@ function selectPuzzle(puzzleId) {
     currentPuzzle = PUZZLES.find(p => p.id === puzzleId);
     gameType = 'puzzle';
     titleSubMode = 'mainMenu';
-    
+
     document.getElementById('puzzle-list-container').style.display = 'none';
 
     resetGame();
