@@ -209,6 +209,32 @@ static initialize () {
     }
 
     static falling (isDownPressed) {
+        // 💡【修正】なぞぷよモードの場合、下キーが押されていなければ落下させない
+        if (gameType === 'puzzle' && !isDownPressed) {
+            // 下キーが押されていないので、接地判定だけを行う
+            let x = this.puyoStatus.x;
+            let y = this.puyoStatus.y;
+            let dx = this.puyoStatus.dx;
+            let dy = this.puyoStatus.dy;
+            
+            let isBlocked = false;
+            if(y + 1 >= Config.stageRows || Stage.board[y + 1][x] || (y + dy + 1 >= 0 && (y + dy + 1 >= Config.stageRows || Stage.board[y + dy + 1][x + dx]))) {
+                isBlocked = true;
+            }
+            
+            if(isBlocked && this.groundFrame == 0) {
+                // 初接地である。接地を開始する
+                this.groundFrame = 1;
+            } else if(isBlocked) {
+                this.groundFrame++;
+            } else {
+                this.groundFrame = 0;
+            }
+            
+            return this.groundFrame > Config.playerGroundFrame;
+        }
+        
+        // 通常モード（またはなぞぷよで下キーが押されている場合）の落下処理
         // 現状の場所の下にブロックがあるかどうか確認する
         let isBlocked = false;
         let x = this.puyoStatus.x;
@@ -412,7 +438,7 @@ static initialize () {
     }
     static moving(frame) {
         // 移動中も自然落下はさせる
-        this.falling();
+        this.falling(this.keyStatus.down);
         const ratio = Math.min(1, (frame - this.actionStartFrame) / Config.playerMoveFrame);
         this.puyoStatus.left = ratio * (this.moveDestination - this.moveSource) + this.moveSource;
         this.setPuyoPosition();
@@ -423,7 +449,7 @@ static initialize () {
     }
     static rotating(frame) {
         // 回転中も自然落下はさせる
-        this.falling();
+        this.falling(this.keyStatus.down);
         const ratio = Math.min(1, (frame - this.actionStartFrame) / Config.playerRotateFrame);
         this.puyoStatus.left = (this.rotateAfterLeft - this.rotateBeforeLeft) * ratio + this.rotateBeforeLeft;
         this.puyoStatus.rotation = this.rotateFromRotation + ratio * 90;

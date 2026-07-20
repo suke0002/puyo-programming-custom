@@ -33,7 +33,8 @@ let latestRankInIndex = -1;
 let currentHighScore = 0;
 let lastTimerUpdateTime = 0;
 let isPaused = false; // 💡【追加】ポーズ中かどうかを管理するフラグ
-let selectedPauseMenuIndex = 0; // 💡【追加】ポーズメニューの選択インデックス（0:再開, 1:リトライ, 2:一覧に戻る）
+let selectedPauseMenuIndex = 0; // 💡【追加】ポーズメニューの選択インデックス
+let pauseMenuCount = 3; // 💡【追加】ポーズメニューの項目数（通常3、なぞぷよ時4）
 
 // 💡【追加】なぞぷよ用の変数
 let currentPuzzleId = null;
@@ -51,17 +52,11 @@ document.addEventListener('keydown', (e) => {
             updatePauseMenuDOM();
         }
         if (e.keyCode === 40) { // 下向きキー
-            selectedPauseMenuIndex = Math.min(2, selectedPauseMenuIndex + 1);
+            selectedPauseMenuIndex = Math.min(pauseMenuCount - 1, selectedPauseMenuIndex + 1);
             updatePauseMenuDOM();
         }
         if (e.keyCode === 13) { // Enterキー（決定）
-            if (selectedPauseMenuIndex === 0) {
-                togglePause();
-            } else if (selectedPauseMenuIndex === 1) {
-                retryGame();
-            } else {
-                backToPuzzleListFromPause();
-            }
+            selectPauseMenu(selectedPauseMenuIndex);
         }
         if (e.keyCode === 27) { // ポーズ中にEscが押されたら再開
             togglePause();
@@ -517,39 +512,68 @@ function togglePause() {
     }
 }
 
+// 💡【追加】ポーズメニューの項目数を設定
+function setPauseMenuCount() {
+    if (gameType === 'puzzle') {
+        pauseMenuCount = 4; // 再開、リトライ、一覧に戻る、タイトル
+    } else {
+        pauseMenuCount = 3; // 再開、リトライ、タイトル
+    }
+}
+
+// 💡【追加】ポーズメニューの選択処理を一元化
+function selectPauseMenu(index) {
+    if (index === 0) {
+        togglePause();
+    } else if (index === 1) {
+        retryGame();
+    } else if (gameType === 'puzzle' && index === 2) {
+        // なぞぷよモード：一覧に戻る
+        backToPuzzleListFromPause();
+    } else if ((gameType === 'puzzle' && index === 3) || (gameType !== 'puzzle' && index === 2)) {
+        // タイトルに戻る
+        backToTitleFromPause();
+    }
+}
+
 // 💡【追加】ポーズメニューの選択状態（見た目）を更新する関数
 function updatePauseMenuDOM() {
     const resumeBtn = document.getElementById('pause-resume-btn');
     const retryBtn = document.getElementById('pause-retry-btn');
+    const listBtn = document.getElementById('pause-list-btn');
     const titleBtn = document.getElementById('pause-title-btn');
     
     if (!resumeBtn || !retryBtn || !titleBtn) return;
 
+    // まず全てをリセット
+    resumeBtn.style.color = '#888888';
+    retryBtn.style.color = '#888888';
+    if (listBtn) listBtn.style.color = '#888888';
+    titleBtn.style.color = '#888888';
+
+    resumeBtn.innerText = 'ゲームを再開する';
+    retryBtn.innerText = 'はじめからやりなおす';
+    if (listBtn) listBtn.innerText = '問題一覧に戻る';
+    titleBtn.innerText = 'タイトルに戻る';
+
+    // なぞぷよモード時はリスト項目を表示、通常モード時は非表示
+    if (listBtn) {
+        listBtn.style.display = gameType === 'puzzle' ? 'block' : 'none';
+    }
+
+    // 選択中の項目に▶を付ける
     if (selectedPauseMenuIndex === 0) {
         resumeBtn.innerText = '▶ ゲームを再開する';
         resumeBtn.style.color = '#ffffff';
-        
-        retryBtn.innerText = 'はじめからやりなおす';
-        retryBtn.style.color = '#888888';
-        
-        titleBtn.innerText = 'タイトルに戻る';
-        titleBtn.style.color = '#888888';
     } else if (selectedPauseMenuIndex === 1) {
-        resumeBtn.innerText = 'ゲームを再開する';
-        resumeBtn.style.color = '#888888';
-        
         retryBtn.innerText = '▶ はじめからやりなおす';
         retryBtn.style.color = '#ffffff';
-        
-        titleBtn.innerText = 'タイトルに戻る';
-        titleBtn.style.color = '#888888';
-    } else {
-        resumeBtn.innerText = 'ゲームを再開する';
-        resumeBtn.style.color = '#888888';
-        
-        retryBtn.innerText = 'はじめからやりなおす';
-        retryBtn.style.color = '#888888';
-        
+    } else if (selectedPauseMenuIndex === 2 && gameType === 'puzzle') {
+        if (listBtn) {
+            listBtn.innerText = '▶ 問題一覧に戻る';
+            listBtn.style.color = '#ffffff';
+        }
+    } else if ((selectedPauseMenuIndex === 3 && gameType === 'puzzle') || (selectedPauseMenuIndex === 2 && gameType !== 'puzzle')) {
         titleBtn.innerText = '▶ タイトルに戻る';
         titleBtn.style.color = '#ffffff';
     }
@@ -658,7 +682,7 @@ function updatePuzzleResultMenuDOM() {
         const overlay = document.getElementById('message-overlay');
         const container = document.createElement('div');
         container.id = 'puzzle-result-menu-container';
-        container.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(26, 26, 26, 0.95); padding: 40px 30px; border: 4px solid #fff; border-radius: 12px; text-align: center; font-family: sans-serif; min-width: 280px; z-index: 1001;';
+        container.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(26, 26, 26, 0.95); padding: 40px 30px; border: 4px solid #fff; border-radius: 12px; text-align: center; z-index: 10000;';
         
         container.innerHTML = `
             <div id="puzzle-menu-item-0" onmouseover="hoverPuzzleResultMenu(0)" style="font-size: 22px; color: #fff; margin: 20px 0; cursor: pointer; font-weight: bold;">▶ 次の問題に進む</div>
@@ -1074,5 +1098,6 @@ function selectPuzzle(puzzleId) {
 
     document.getElementById('puzzle-list-container').style.display = 'none';
 
+    setPauseMenuCount();
     resetGame();
 }
