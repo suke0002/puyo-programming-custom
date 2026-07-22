@@ -149,13 +149,11 @@ static initialize () {
 
         // 💡【修正】なぞぷよモード時はネクストキューを使用、それ以外はランダム生成
         if (gameType === 'puzzle') {
-            // なぞぷよモード：currentPuzzle.nextQueue から取り出す
-            if (puzzleNextQueueIndex >= currentPuzzle.nextQueue.length) {
-                // ネクストキューが尽きた場合は、ネクストキューの最後の値をループさせる
-                puzzleNextQueueIndex = currentPuzzle.nextQueue.length - 1;
+            if (!currentPuzzle || puzzleNextQueueIndex >= currentPuzzle.nextQueue.length) {
+                // ネクストが全て使い切られた → 新しいぷよは生成できない（ここでゲーム終了判定へ）
+                return false;
             }
-            
-            // 2個分ぷよを取り出す
+            // 2個分ぷよを取り出す（安全に取り出せることが前提）
             this.centerPuyo = currentPuzzle.nextQueue[puzzleNextQueueIndex];
             this.movablePuyo = currentPuzzle.nextQueue[puzzleNextQueueIndex + 1];
             puzzleNextQueueIndex += 2;
