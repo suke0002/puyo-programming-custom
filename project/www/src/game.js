@@ -499,16 +499,36 @@ function predictIfChainContinues() {
     return false;
 }
 
-// 💡【追加・修正】ポーズ状態を切り替える関数
+// 💡【修正】ポーズ状態を切り替える関数
 function togglePause() {
     isPaused = !isPaused;
     const pauseMenu = document.getElementById('pause-menu');
+    const pauseBtn = document.getElementById('pause-btn');
+    
     if (pauseMenu) {
         pauseMenu.style.display = isPaused ? 'block' : 'none';
     }
+    
     if (isPaused) {
         selectedPauseMenuIndex = 0; // ポーズを開いたときは「再開」を初期選択にする
         updatePauseMenuDOM();
+    }
+}
+
+// 💡【修正】ゲーム中のポーズボタン表示制御
+function updatePauseButtonVisibility() {
+    const pauseBtn = document.getElementById('pause-btn');
+    if (!pauseBtn) return;
+    
+    // ゲーム中のモードをチェック
+    const isGamePlaying = (mode === 'playing' || mode === 'moving' || mode === 'rotating' || 
+                          mode === 'fix' || mode === 'checkFall' || mode === 'fall' || 
+                          mode === 'checkErase' || mode === 'erasing' || mode === 'newPuyo');
+    
+    if (isGamePlaying) {
+        pauseBtn.style.display = 'block';
+    } else {
+        pauseBtn.style.display = 'none';
     }
 }
 
@@ -536,7 +556,7 @@ function selectPauseMenu(index) {
     }
 }
 
-// 💡【追加】ポーズメニューの選択状態（見た目）を更新する関数
+// 💡【修正】ポーズメニューの選択状態（見た目）を更新する関数 - マウス操作対応
 function updatePauseMenuDOM() {
     const resumeBtn = document.getElementById('pause-resume-btn');
     const retryBtn = document.getElementById('pause-retry-btn');
@@ -583,6 +603,13 @@ function updatePauseMenuDOM() {
 function hoverPauseMenu(index) {
     selectedPauseMenuIndex = index;
     updatePauseMenuDOM();
+}
+
+// 💡【追加】ポーズメニューアイテムをクリックするための関数
+function clickPauseMenu(index) {
+    selectedPauseMenuIndex = index;
+    updatePauseMenuDOM();
+    selectPauseMenu(index);
 }
 
 function backToTitleFromPause() {
@@ -682,12 +709,12 @@ function updatePuzzleResultMenuDOM() {
         const overlay = document.getElementById('message-overlay');
         const container = document.createElement('div');
         container.id = 'puzzle-result-menu-container';
-        container.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(26, 26, 26, 0.95); padding: 40px 30px; border: 4px solid #fff; border-radius: 12px; text-align: center; z-index: 10000;';
+        container.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(26, 26, 26, 0.95); padding: 40px 30px; border: 4px solid #fff; border-radius: 12px; text-align: center; z-index: 9998;';
         
         container.innerHTML = `
-            <div id="puzzle-menu-item-0" onmouseover="hoverPuzzleResultMenu(0)" style="font-size: 22px; color: #fff; margin: 20px 0; cursor: pointer; font-weight: bold;">▶ 次の問題に進む</div>
-            <div id="puzzle-menu-item-1" onmouseover="hoverPuzzleResultMenu(1)" style="font-size: 22px; color: #888; margin: 20px 0; cursor: pointer; font-weight: bold;">問題一覧に戻る</div>
-            <div id="puzzle-menu-item-2" onmouseover="hoverPuzzleResultMenu(2)" style="font-size: 22px; color: #888; margin: 20px 0; cursor: pointer; font-weight: bold;">タイトルに戻る</div>
+            <div id="puzzle-menu-item-0" onclick="clickPuzzleResultMenu(0)" onmouseover="hoverPuzzleResultMenu(0)" style="font-size: 22px; color: #fff; margin: 20px 0; cursor: pointer; font-weight: bold; min-width: 280px; min-height: 28px;">▶ 次の問題に進む</div>
+            <div id="puzzle-menu-item-1" onclick="clickPuzzleResultMenu(1)" onmouseover="hoverPuzzleResultMenu(1)" style="font-size: 22px; color: #888; margin: 20px 0; cursor: pointer; font-weight: bold; min-width: 280px; min-height: 28px;">問題一覧に戻る</div>
+            <div id="puzzle-menu-item-2" onclick="clickPuzzleResultMenu(2)" onmouseover="hoverPuzzleResultMenu(2)" style="font-size: 22px; color: #888; margin: 20px 0; cursor: pointer; font-weight: bold; min-width: 280px; min-height: 28px;">タイトルに戻る</div>
         `;
         overlay.appendChild(container);
         resultContainer = container;
@@ -726,6 +753,13 @@ function hoverPuzzleResultMenu(index) {
     updatePuzzleResultMenuDOM();
 }
 
+// 💡【追加】パズル結果メニューのクリック処理
+function clickPuzzleResultMenu(index) {
+    selectedPuzzleResultMenuIndex = index;
+    updatePuzzleResultMenuDOM();
+    selectPuzzleResultMenu(index);
+}
+
 // 💡【追加】パズル結果メニューの選択処理
 function selectPuzzleResultMenu(index) {
     if (index === 0) {
@@ -758,6 +792,9 @@ function selectPuzzleResultMenu(index) {
 }
 
 function loop() {
+    // 💡【追加】ポーズボタンの表示制御
+    updatePauseButtonVisibility();
+    
     // 💡【追加】ポーズ中の場合の処理
     if (isPaused) {
         // ゲーム自体の進行（switch(mode)）は実行せずに次フレームへリクエスト
