@@ -482,6 +482,14 @@ static initialize () {
         Stage.stageElement.removeChild(this.movablePuyoElement);
         this.centerPuyoElement = null;
         this.movablePuyoElement = null;
+        
+        // 💡【追加】なぞぷよモード時の正解判定
+        if (gameType === 'puzzle' && !puzzleSolutionMatched) {
+            if (checkPuzzleSolutionMatchAtFixTime()) {
+                puzzleSolutionMatched = true;  // フラグを立てる
+                console.log('✅ 正解パターンと一致しました！');
+            }
+        }
     }
 
     static batankyu() {

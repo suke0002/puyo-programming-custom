@@ -41,6 +41,7 @@ let currentPuzzleId = null;
 let currentPuzzle = null;
 let puzzleNextQueueIndex = 0;  // ネクストキューのどこまで使ったかを記録
 let puzzleClearConditionMet = false; // クリア条件を満たしたかを記録
+let puzzleSolutionMatched = false; // 💡【追加】正解パターン一致フラグ
 let selectedPuzzleResultMenuIndex = 0; // 💡【追加】パズルクリア/失敗画面のメニューインデックス（0:次の問題, 1:一覧に戻る, 2:タイトル）
 const PUZZLE_RESULT_MENU_COUNT = 3; // 💡【追加】パズルメニュー項目数
 
@@ -302,6 +303,7 @@ function resetGame() {
         document.getElementById('puzzle-next-list-container').style.display = 'block';
         updatePuzzleGoalDisplay();
         updatePuzzleNextListDisplay();
+        puzzleSolutionMatched = false;  // 💡【追加】フラグをリセット
     } else if (gameType === 'scoreAttack') {
         Config.puyoColors = 4; 
         remainingTime = 120;   
@@ -937,8 +939,9 @@ function loop() {
                     }
                 }
                 
-                // 💡【追加】なぞぷよ用クリア判定
-                if (gameType === 'puzzle' && checkPuzzleClearCondition()) {
+                // 💡【修正】正解パターン一致フラグが立っていて、連鎖が終わりそうなら
+                if (gameType === 'puzzle' && puzzleSolutionMatched && !willChainContinue) {
+                    // 連鎖が終わる → CLEAR画面へ
                     mode = 'puzzleClear';
                     break;
                 }
@@ -970,14 +973,22 @@ function loop() {
 
             if(!Player.createNewPuyo()) {
                 if (gameType === 'puzzle') {
-                    // なぞぷよで盤面が積み上がってゲームオーバー
-                    mode = 'puzzleOver';
+                    // ネクストが尽きた、または盤面満杯
+                    // 💡【修正】正解パターン一致フラグをチェック
+                    if (puzzleSolutionMatched) {
+                        // すでにCLEAR確定フラグが立っている → 最終確認
+                        // （実際にはここに来る前に puzzleClear に遷移している）
+                        mode = 'puzzleClear';
+                    } else {
+                        // 正解パターンと一致しなかった → FAILED
+                        mode = 'puzzleOver';
+                    }
                 } else {
                     mode = 'gameOver';
                 }
             } else {
                 mode = 'playing';
-                updatePuzzleNextListDisplay(); // なぞぷよ用ネクスト更新
+                updatePuzzleNextListDisplay();
             }
             break;
 
@@ -1162,4 +1173,32 @@ function selectPuzzle(puzzleId) {
 
     setPauseMenuCount();
     resetGame();
+}
+
+// 💡【修正】ぷよが固定された直後に呼ぶ判定関数
+function checkPuzzleSolutionMatchAtFixTime() {
+    if (!currentPuzzle || !currentPuzzle.solutionBoard) return false;
+    
+    // ぷよが固定された直後なので、まだ消去処理は始まっていない
+    // その時点のボード配置を比較
+    for (let y = 0; y < Config.stageRows; y++) {
+        for (let x = 0; x < Config.stageCols; x++) {
+            const currentCell = Stage.board[y][x];
+            const solutionCell = currentPuzzle.solutionBoard[y][x];
+            
+            const currentPuyo = currentCell ? currentCell.puyo : 0;
+            const solutionPuyo = solutionCell || 0;
+            
+            if (currentPuyo !== solutionPuyo) {
+                return false;
+            }
+        }
+    }
+    
+    return true;
+}
+
+// 💡【追加】ネクストキューが全て使い切られたかをチェック
+function isPuzzleNextQueueExhausted() {
+    return puzzleNextQueueIndex >= currentPuzzle.nextQueue.length;
 }
