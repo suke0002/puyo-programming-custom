@@ -770,6 +770,7 @@ function updatePuzzleNextListDisplay() {
     parentContainer.style.padding = '6px 0';
     parentContainer.style.position = 'relative';
     parentContainer.style.zIndex = '10';
+    parentContainer.style.marginLeft = '150px'
 
     container.innerHTML = '';
 
